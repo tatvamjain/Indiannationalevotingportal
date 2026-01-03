@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Vote } from 'lucide-react';
 import Header from './Header';
@@ -6,15 +6,24 @@ import Footer from './Footer';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { createClient } from '../utils/supabase/client';
 import { toast } from 'sonner';
+import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
 
 export default function ValidatingVotePage() {
   const navigate = useNavigate();
+  const { isVoiceMode, speak } = useVoiceAccessibility();
   const selectedCandidateID = sessionStorage.getItem('selectedCandidateID');
   const voterID = sessionStorage.getItem('voterID');
+  const hasSpoken = useRef(false);
 
   useEffect(() => {
+    // Announce to voice users (only once)
+    if (isVoiceMode && !hasSpoken.current) {
+      speak('Processing your vote. Please wait while we validate and save your choice.');
+      hasSpoken.current = true;
+    }
+    
     processVote();
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   const processVote = async () => {
     try {

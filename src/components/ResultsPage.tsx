@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart, TrendingUp, Users, Vote, Award, Loader2 } from 'lucide-react';
+import { BarChart, TrendingUp, Users, Vote, Award, Loader2, ChevronDown } from 'lucide-react';
 import Header from './Header';
 import Footer from './Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -22,53 +22,81 @@ interface Election {
   id: string;
   name: string;
   constituency: string;
+  is_active: boolean;
 }
 
 export default function ResultsPage() {
   const [results, setResults] = useState<CandidateResult[]>([]);
-  const [election, setElection] = useState<Election | null>(null);
+  const [elections, setElections] = useState<Election[]>([]);
+  const [selectedElection, setSelectedElection] = useState<Election | null>(null);
   const [loading, setLoading] = useState(true);
 
   const totalVotes = results.reduce((sum, candidate) => sum + candidate.votes, 0);
   const winner = results.length > 0 ? results.reduce((prev, current) => (current.votes > prev.votes ? current : prev)) : null;
 
   useEffect(() => {
-    loadResults();
-    
-    // Auto-refresh every 10 seconds
-    const interval = setInterval(() => {
-      loadResults();
-    }, 10000);
-
-    return () => clearInterval(interval);
+    loadElections();
   }, []);
 
-  const loadResults = async () => {
+  useEffect(() => {
+    if (selectedElection) {
+      loadResults(selectedElection.id);
+      
+      // Auto-refresh every 10 seconds for the selected election
+      const interval = setInterval(() => {
+        loadResults(selectedElection.id);
+      }, 10000);
+
+      return () => clearInterval(interval);
+    }
+  }, [selectedElection]);
+
+  const loadElections = async () => {
     try {
+      setLoading(true);
       const supabase = createClient();
       
-      // Get active election
-      const { data: electionData, error: electionError } = await supabase
+      // Get all elections, ordered by active first, then by date
+      const { data: electionsData, error: electionsError } = await supabase
         .from('elections')
-        .select('id, name, constituency')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .select('id, name, constituency, is_active')
+        .order('is_active', { ascending: false })
+        .order('created_at', { ascending: false });
 
-      if (electionError || !electionData) {
-        console.error('Error loading election:', electionError);
+      if (electionsError) {
+        console.error('Error loading elections:', electionsError);
+        toast.error('Failed to load elections');
         setLoading(false);
         return;
       }
 
-      setElection(electionData);
+      if (!electionsData || electionsData.length === 0) {
+        setElections([]);
+        setSelectedElection(null);
+        setLoading(false);
+        return;
+      }
+
+      setElections(electionsData);
+      // Auto-select the first active election, or the first election if none are active
+      const defaultElection = electionsData.find(e => e.is_active) || electionsData[0];
+      setSelectedElection(defaultElection);
+    } catch (err) {
+      console.error('Error loading elections:', err);
+      toast.error('Failed to load elections');
+      setLoading(false);
+    }
+  };
+
+  const loadResults = async (electionId: string) => {
+    try {
+      const supabase = createClient();
 
       // Get candidates with their vote counts
       const { data: candidatesData, error: candidatesError } = await supabase
         .from('candidates')
         .select('id, name, party, symbol')
-        .eq('election_id', electionData.id);
+        .eq('election_id', electionId);
 
       if (candidatesError) {
         console.error('Error loading candidates:', candidatesError);
@@ -81,7 +109,7 @@ export default function ResultsPage() {
       const { data: resultsData, error: resultsError } = await supabase
         .from('results')
         .select('candidate_id, vote_count')
-        .eq('election_id', electionData.id);
+        .eq('election_id', electionId);
 
       if (resultsError) {
         console.error('Error loading results:', resultsError);
@@ -141,7 +169,7 @@ export default function ResultsPage() {
     );
   }
 
-  if (!election) {
+  if (!selectedElection) {
     return (
       <div className="flex flex-col min-h-screen">
         <Header />
@@ -167,14 +195,48 @@ export default function ResultsPage() {
       <main className="flex-1 py-8 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-4">
               <h1 className="text-[#002B5B]">Election Results</h1>
               <Badge className="bg-green-500 hover:bg-green-600">
                 <div className="size-2 bg-white rounded-full animate-pulse mr-2"></div>
                 Live
               </Badge>
             </div>
-            <p className="text-gray-600">{election.name} - {election.constituency}</p>
+            
+            {/* Election Selector */}
+            {elections.length > 1 && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Election
+                </label>
+                <div className="relative inline-block w-full max-w-md">
+                  <select
+                    value={selectedElection.id}
+                    onChange={(e) => {
+                      const election = elections.find(el => el.id === e.target.value);
+                      if (election) setSelectedElection(election);
+                    }}
+                    className="w-full appearance-none bg-white border-2 border-gray-300 rounded-lg px-4 py-3 pr-10 text-[#002B5B] font-medium focus:outline-none focus:ring-2 focus:ring-[#002B5B] focus:border-transparent cursor-pointer hover:border-gray-400 transition-colors"
+                  >
+                    {elections.map((election) => (
+                      <option key={election.id} value={election.id}>
+                        {election.name} - {election.constituency} {election.is_active ? '(Active)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-5 text-gray-500 pointer-events-none" />
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-2">
+              <p className="text-gray-600">{selectedElection.name} - {selectedElection.constituency}</p>
+              {selectedElection.is_active && (
+                <Badge variant="outline" className="border-green-500 text-green-700 bg-green-50">
+                  Active
+                </Badge>
+              )}
+            </div>
           </div>
 
           {/* Summary Cards */}

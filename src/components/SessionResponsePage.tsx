@@ -7,16 +7,77 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { createClient } from '../utils/supabase/client';
 import { toast } from 'sonner';
+import { useVoiceGuide } from '../hooks/useVoiceGuide';
+import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
 
 export default function SessionResponsePage() {
   const navigate = useNavigate();
+  const { isVoiceMode } = useVoiceAccessibility();
   const [isGranted, setIsGranted] = useState<boolean | null>(null);
   const [sessionData, setSessionData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const voiceGuide = useVoiceGuide({
+    page: 'session-response',
+    welcomeMessage: '', // Empty - we'll handle it manually in useEffect
+    commands: {
+      'continue': () => {
+        if (isGranted) {
+          voiceGuide.speak('Proceeding to dashboard.', () => {
+            navigate('/dashboard');
+          });
+        } else {
+          voiceGuide.speak('Please wait. Authentication is still in progress.');
+        }
+      },
+      'proceed': () => {
+        if (isGranted) {
+          voiceGuide.speak('Proceeding to dashboard.', () => {
+            navigate('/dashboard');
+          });
+        }
+      },
+      'dashboard': () => {
+        if (isGranted) {
+          voiceGuide.speak('Going to dashboard.', () => {
+            navigate('/dashboard');
+          });
+        }
+      },
+      'retry': () => {
+        voiceGuide.speak('Redirecting to registration.', () => {
+          navigate('/register');
+        });
+      },
+      'try again': () => {
+        voiceGuide.speak('Redirecting to registration.', () => {
+          navigate('/register');
+        });
+      },
+    },
+    autoStart: false, // Disabled - we control it manually
+  });
+
   useEffect(() => {
     createVoterSession();
   }, []);
+  
+  // Announce result when loading completes
+  useEffect(() => {
+    if (!loading && isVoiceMode) {
+      if (isGranted && sessionData) {
+        voiceGuide.speak(`Authentication granted. Your identity has been successfully verified. User ID: ${sessionData.userID}. Say "continue" to proceed to the dashboard.`, () => {
+          // Start listening for commands after announcement
+          voiceGuide.startListening();
+        });
+      } else if (isGranted === false) {
+        voiceGuide.speak('Authentication denied. There was an error creating your session. Please try again. Say "retry" to go back to registration.', () => {
+          // Start listening for commands after announcement
+          voiceGuide.startListening();
+        });
+      }
+    }
+  }, [loading, isGranted, sessionData, isVoiceMode]);
 
   const createVoterSession = async () => {
     try {
@@ -75,7 +136,16 @@ export default function SessionResponsePage() {
 
         if (insertError) {
           console.error('Error creating voter:', insertError);
-          toast.error('Failed to create voter account');
+          console.error('Full error details:', JSON.stringify(insertError, null, 2));
+          
+          // More specific error messages
+          if (insertError.message.includes('permission denied') || insertError.message.includes('policy')) {
+            toast.error('Database permission error. Please contact administrator.');
+            console.error('💡 FIX: Run /utils/supabase/fix-all-rls.sql in Supabase SQL Editor');
+          } else {
+            toast.error(`Failed to create voter account: ${insertError.message}`);
+          }
+          
           setIsGranted(false);
           setLoading(false);
           return;
@@ -103,11 +173,24 @@ export default function SessionResponsePage() {
       setIsGranted(true);
       setLoading(false);
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('Session creation error:', err);
+      console.error('Error message:', err?.message || 'Unknown error');
+      
+      // Show more helpful error message
+      if (err?.message?.includes('Failed to fetch')) {
+        toast.error('Database connection error. Please check Supabase setup.');
+        console.error('💡 FIX: The Supabase database needs RLS policies configured.');
+        console.error('📖 STEP 1: Go to https://supabase.com/dashboard/project/pjqsobwfoyvsrutmfnta/sql');
+        console.error('📖 STEP 2: Copy and paste the SQL from /utils/supabase/fix-all-rls.sql');
+        console.error('📖 STEP 3: Click "Run" to execute the SQL');
+        console.error('📖 See DATABASE_SETUP.md for detailed instructions');
+      } else {
+        toast.error('Failed to create session');
+      }
+      
       setIsGranted(false);
       setLoading(false);
-      toast.error('Failed to create session');
     }
   };
 
@@ -191,9 +274,28 @@ export default function SessionResponsePage() {
                   ) : (
                     <>
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <p className="text-sm text-red-900">
+                        <p className="text-sm text-red-900 mb-3">
                           Authentication failed. Please verify your information and try again.
                         </p>
+                        <div className="text-xs text-gray-700 space-y-2 bg-white p-3 rounded border border-gray-200">
+                          <p className="font-semibold text-red-800">📋 Troubleshooting:</p>
+                          <ol className="list-decimal list-inside space-y-1">
+                            <li>Open browser console (Press F12)</li>
+                            <li>Look for detailed error messages</li>
+                            <li>If you see "Failed to fetch", the database needs RLS policies</li>
+                          </ol>
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <p className="font-semibold mb-1">Quick Fix:</p>
+                            <ol className="list-decimal list-inside space-y-1 text-gray-600">
+                              <li>Go to <a href="https://supabase.com/dashboard/project/pjqsobwfoyvsrutmfnta/sql" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Supabase SQL Editor</a></li>
+                              <li>Copy SQL from <code className="bg-gray-100 px-1 rounded">/utils/supabase/fix-all-rls.sql</code></li>
+                              <li>Paste and click "Run"</li>
+                            </ol>
+                          </div>
+                          <p className="text-gray-500 mt-2 pt-2 border-t border-gray-200">
+                            See <code className="bg-gray-100 px-1 rounded">/TROUBLESHOOTING.md</code> for detailed help
+                          </p>
+                        </div>
                       </div>
 
                       <Button 

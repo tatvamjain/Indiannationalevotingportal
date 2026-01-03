@@ -4,6 +4,7 @@ import Header from './Header';
 import Footer from './Footer';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
+import { useVoiceGuide } from '../hooks/useVoiceGuide';
 
 export default function ConfirmationPage() {
   const navigate = useNavigate();
@@ -12,6 +13,40 @@ export default function ConfirmationPage() {
   const receiptID = voteReceipt.receiptID || 'RECEIPT-DEMO-123456';
   const confirmationHash = voteReceipt.confirmationHash || 'HASH-DEMO-ABCDEF';
   const timestamp = voteReceipt.timestamp || new Date().toLocaleString('en-IN');
+
+  const voiceGuide = useVoiceGuide({
+    page: 'confirmation',
+    welcomeMessage: `Your vote has been successfully recorded. Your receipt ID is ${receiptID.replace(/-/g, ' ')}. Say "Download Receipt" to download your vote receipt, "Dashboard" to return to the dashboard, or "View Results" to see election results.`,
+    commands: {
+      'download receipt': () => {
+        handleDownloadReceipt();
+        voiceGuide.speak('Your vote receipt has been downloaded.');
+      },
+      'download': () => {
+        handleDownloadReceipt();
+        voiceGuide.speak('Your vote receipt has been downloaded.');
+      },
+      'dashboard': () => {
+        voiceGuide.speak('Returning to dashboard.', () => {
+          navigate('/dashboard');
+        });
+      },
+      'view results': () => {
+        voiceGuide.speak('Navigating to election results.', () => {
+          navigate('/results');
+        });
+      },
+      'results': () => {
+        voiceGuide.speak('Navigating to election results.', () => {
+          navigate('/results');
+        });
+      },
+      'repeat receipt': () => {
+        voiceGuide.speak(`Your receipt ID is ${receiptID.replace(/-/g, ' ')}. Your confirmation hash is ${confirmationHash.replace(/-/g, ' ')}.`);
+      },
+    },
+    autoStart: true,
+  });
 
   const handleDownloadReceipt = () => {
     const receiptText = `

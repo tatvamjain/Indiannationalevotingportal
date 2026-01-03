@@ -4,11 +4,26 @@ import { Input } from './ui/input';
 interface OTPInputProps {
   length?: number;
   onComplete: (otp: string) => void;
+  value?: string;
+  onChange?: (otp: string) => void;
 }
 
-export default function OTPInput({ length = 6, onComplete }: OTPInputProps) {
+export default function OTPInput({ length = 6, onComplete, value: externalValue, onChange: externalOnChange }: OTPInputProps) {
   const [otp, setOtp] = useState<string[]>(new Array(length).fill(''));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Sync with external value if provided
+  useEffect(() => {
+    if (externalValue !== undefined) {
+      const newOtp = new Array(length).fill('');
+      externalValue.split('').forEach((char, index) => {
+        if (index < length) {
+          newOtp[index] = char;
+        }
+      });
+      setOtp(newOtp);
+    }
+  }, [externalValue, length]);
 
   useEffect(() => {
     if (inputRefs.current[0]) {
@@ -23,13 +38,18 @@ export default function OTPInput({ length = 6, onComplete }: OTPInputProps) {
     newOtp[index] = value.substring(value.length - 1);
     setOtp(newOtp);
 
+    // Notify parent if external onChange is provided
+    const otpValue = newOtp.join('');
+    if (externalOnChange) {
+      externalOnChange(otpValue);
+    }
+
     // Move to next input
     if (value && index < length - 1 && inputRefs.current[index + 1]) {
       inputRefs.current[index + 1]?.focus();
     }
 
     // Check if OTP is complete
-    const otpValue = newOtp.join('');
     if (otpValue.length === length) {
       onComplete(otpValue);
     }

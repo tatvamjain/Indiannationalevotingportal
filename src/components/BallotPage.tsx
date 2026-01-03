@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Vote, CheckCircle } from 'lucide-react';
 import Header from './Header';
@@ -10,6 +10,10 @@ import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { createClient } from '../utils/supabase/client';
 import { toast } from 'sonner';
+import VoiceVotingInterface from './VoiceVotingInterface';
+import { useLanguage } from '../utils/i18n/LanguageContext';
+import { useVoiceGuide } from '../hooks/useVoiceGuide';
+import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
 
 interface Candidate {
   id: string;
@@ -32,6 +36,100 @@ export default function BallotPage() {
   const [election, setElection] = useState<Election | null>(null);
   const [loading, setLoading] = useState(true);
   const voterID = sessionStorage.getItem('voterID');
+  const { language } = useLanguage();
+  const { isVoiceMode } = useVoiceAccessibility();
+  const hasAnnounced = useRef(false); // Track if we've already announced
+
+  // Generate voice guidance message for candidates
+  const generateCandidatesMessage = () => {
+    if (candidates.length === 0) return 'No candidates available.';
+    
+    const candidateList = candidates.map((c, idx) => 
+      `Candidate ${idx + 1}: ${c.name}, from ${c.party}.`
+    ).join(' ');
+    
+    return `There are ${candidates.length} candidates. ${candidateList} Say the candidate number or name to select, for example, "Candidate 1" or "Select ${candidates[0]?.name}".`;
+  };
+
+  const voiceGuide = useVoiceGuide({
+    page: 'ballot',
+    welcomeMessage: '', // Empty - we'll handle manually in useEffect
+    commands: {
+      ...candidates.reduce((acc, candidate, idx) => {
+        // Add commands for candidate numbers
+        acc[`candidate ${idx + 1}`] = () => {
+          setSelectedCandidate(candidate.id);
+          voiceGuide.speak(`You have selected candidate ${idx + 1}, ${candidate.name} from ${candidate.party}. Say "Confirm" to cast your vote, or say "Change" to select a different candidate.`, () => {
+            voiceGuide.startListening(); // Restart listening after speaking
+          });
+        };
+        
+        // Add commands for candidate names
+        const nameParts = candidate.name.toLowerCase().split(' ');
+        nameParts.forEach(part => {
+          if (part.length > 3) { // Only match meaningful name parts
+            acc[part] = () => {
+              setSelectedCandidate(candidate.id);
+              voiceGuide.speak(`You have selected ${candidate.name} from ${candidate.party}. Say "Confirm" to cast your vote, or say "Change" to select a different candidate.`, () => {
+                voiceGuide.startListening(); // Restart listening after speaking
+              });
+            };
+          }
+        });
+        
+        return acc;
+      }, {} as Record<string, () => void>),
+      'confirm': () => {
+        if (!selectedCandidate) {
+          voiceGuide.speak('No candidate selected. Please select a candidate first.', () => {
+            voiceGuide.startListening(); // Restart listening after speaking
+          });
+          return;
+        }
+        handleVoiceVote();
+      },
+      'change': () => {
+        setSelectedCandidate('');
+        voiceGuide.speak('Selection cleared. ' + generateCandidatesMessage(), () => {
+          voiceGuide.startListening(); // Restart listening after speaking
+        });
+      },
+      'list candidates': () => {
+        voiceGuide.speak(generateCandidatesMessage(), () => {
+          voiceGuide.startListening(); // Restart listening after speaking
+        });
+      },
+    },
+    autoStart: false, // Disabled - we control it manually
+  });
+
+  // Announce when candidates are loaded
+  useEffect(() => {
+    if (!loading && election && candidates.length > 0 && isVoiceMode && !hasAnnounced.current) {
+      const message = `You are on the ballot page for ${election.name}, ${election.constituency}. ${generateCandidatesMessage()}`;
+      voiceGuide.speak(message, () => {
+        voiceGuide.startListening(); // Start listening after announcement
+      });
+      hasAnnounced.current = true; // Prevent re-announcing
+    }
+  }, [loading, election, candidates, isVoiceMode]); // Removed voiceGuide from dependencies
+
+  const handleVoiceVote = () => {
+    const candidate = candidates.find(c => c.id === selectedCandidate);
+    if (!candidate) return;
+
+    voiceGuide.confirmAction(
+      `You are about to cast your vote for ${candidate.name} from ${candidate.party}. This action cannot be undone.`,
+      () => {
+        voiceGuide.speak('Submitting your vote. Please wait.', () => {
+          handleCastVote();
+        });
+      },
+      () => {
+        voiceGuide.speak('Vote cancelled. You can select a different candidate.');
+      }
+    );
+  };
 
   useEffect(() => {
     loadElectionAndCandidates();
@@ -246,6 +344,14 @@ export default function BallotPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Voice Voting Interface */}
+            <VoiceVotingInterface
+              candidates={candidates}
+              selectedCandidate={selectedCandidate}
+              onSelectCandidate={setSelectedCandidate}
+              electionName={election.name}
+            />
 
             <Card>
               <CardContent className="pt-6">

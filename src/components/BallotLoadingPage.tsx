@@ -1,21 +1,30 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, FileText } from 'lucide-react';
 import Header from './Header';
 import Footer from './Footer';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
 
 export default function BallotLoadingPage() {
   const navigate = useNavigate();
+  const { isVoiceMode, speak } = useVoiceAccessibility();
+  const hasSpoken = useRef(false);
 
   useEffect(() => {
+    // Announce to voice users (only once)
+    if (isVoiceMode && !hasSpoken.current) {
+      speak('Loading your ballot. Please wait while we prepare the election details and candidate list.');
+      hasSpoken.current = true;
+    }
+    
     // Simulate loading ballot configuration
     const timer = setTimeout(() => {
       navigate('/ballot');
     }, 2500);
 
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, [navigate, isVoiceMode]); // Removed 'speak' from dependencies
 
   return (
     <div className="flex flex-col min-h-screen">

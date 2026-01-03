@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Vote, CheckCircle, Clock, AlertCircle, BarChart, Shield, Receipt, FileText } from 'lucide-react';
 import Header from './Header';
@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { createClient } from '../utils/supabase/client';
 import { toast } from 'sonner';
+import { useVoiceGuide } from '../hooks/useVoiceGuide';
+import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
 
 interface Election {
   id: string;
@@ -20,6 +22,8 @@ interface Election {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { isVoiceMode } = useVoiceAccessibility();
+  const hasAnnounced = useRef(false); // Track if we've already announced
   
   // Get session data
   const sessionData = JSON.parse(sessionStorage.getItem('sessionData') || '{}');
@@ -32,44 +36,72 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Dynamic welcome message based on current state
+  const getWelcomeMessage = () => {
+    if (hasVoted) {
+      return 'You have already cast your vote. Say "View Results" to see election results, or "View Receipt" to see your vote receipt.';
+    } else if (elections.length > 0) {
+      return `Welcome to your voter dashboard. There is an active election: ${elections[0]?.name}. Say "Vote" to cast your vote, or "View Results" to see current results.`;
+    } else {
+      return 'Welcome to your voter dashboard. There are currently no active elections.';
+    }
+  };
+
+  const voiceGuide = useVoiceGuide({
+    page: 'dashboard',
+    welcomeMessage: '', // We'll handle the welcome message manually in useEffect
+    commands: {
+      'vote': () => {
+        if (hasVoted) {
+          voiceGuide.speak('You have already cast your vote. Only one vote is allowed.', () => {
+            voiceGuide.startListening(); // Restart listening after speaking
+          });
+        } else if (elections.length > 0) {
+          voiceGuide.speak('Navigating to ballot page.', () => {
+            handleStartVoting(elections[0]);
+          });
+        } else {
+          voiceGuide.speak('There are no active elections at this time.', () => {
+            voiceGuide.startListening(); // Restart listening after speaking
+          });
+        }
+      },
+      'view results': () => {
+        voiceGuide.speak('Navigating to election results.', () => {
+          navigate('/results');
+        });
+      },
+      'results': () => {
+        voiceGuide.speak('Navigating to election results.', () => {
+          navigate('/results');
+        });
+      },
+      'view receipt': () => {
+        if (hasVoted) {
+          voiceGuide.speak('Navigating to your vote receipt.', () => {
+            navigate('/receipt-history');
+          });
+        } else {
+          voiceGuide.speak('You have not voted yet. Please cast your vote first.', () => {
+            voiceGuide.startListening(); // Restart listening after speaking
+          });
+        }
+      },
+    },
+    autoStart: false, // Disable autoStart - we'll manually control it
+  });
+
+  const handleStartVoting = (election: Election) => {
+    sessionStorage.setItem('currentElectionID', election.id);
+    navigate('/ballot-loading');
+  };
+
   useEffect(() => {
     if (voterID) {
       loadActiveElections();
     } else {
       setLoading(false);
     }
-  }, [voterID]);
-
-  // Reload elections when page becomes visible (e.g., after voting)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && voterID) {
-        console.log('🔄 Dashboard: Page visible, reloading elections...');
-        loadActiveElections();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [voterID]);
-
-  // Also reload when navigating back to this page
-  useEffect(() => {
-    const reloadOnFocus = () => {
-      if (voterID) {
-        console.log('🔄 Dashboard: Window focused, reloading elections...');
-        loadActiveElections();
-      }
-    };
-
-    window.addEventListener('focus', reloadOnFocus);
-    
-    return () => {
-      window.removeEventListener('focus', reloadOnFocus);
-    };
   }, [voterID]);
 
   const loadActiveElections = async () => {
@@ -187,12 +219,65 @@ export default function DashboardPage() {
     }
 
     // Store the election ID they want to vote in
-    console.log('✅ Proceeding to vote, storing election ID:', electionId);
+    console.log(' Proceeding to vote, storing election ID:', electionId);
     sessionStorage.setItem('currentElectionID', electionId);
     
     console.log('🚀 Navigating to ballot-loading...');
     navigate('/ballot-loading');
   };
+
+  // Reload elections when page becomes visible (e.g., after voting)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && voterID) {
+        console.log('🔄 Dashboard: Page visible, reloading elections...');
+        loadActiveElections();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [voterID]);
+
+  // Announce when elections and voting status are loaded
+  useEffect(() => {
+    if (!loading && isVoiceMode && !hasAnnounced.current) {
+      if (hasVoted) {
+        voiceGuide.speak('You have already cast your vote. Say "View Results" to see election results, or "View Receipt" to see your vote receipt.', () => {
+          voiceGuide.startListening();
+        });
+      } else if (elections.length > 0) {
+        voiceGuide.speak(`Welcome to your voter dashboard. There is an active election: ${elections[0]?.name}. Say "Vote" to cast your vote, or "View Results" to see current results.`, () => {
+          voiceGuide.startListening();
+        });
+      } else {
+        voiceGuide.speak('Welcome to your voter dashboard. There are currently no active elections.', () => {
+          voiceGuide.startListening();
+        });
+      }
+      hasAnnounced.current = true; // Set to true to prevent re-announcing
+    }
+  }, [loading, hasVoted, elections, isVoiceMode]); // Removed voiceGuide from dependencies
+
+  // Also reload when navigating back to this page
+  useEffect(() => {
+    const currentRef = window.location.href;
+    const handlePopState = () => {
+      if (window.location.href === currentRef) {
+        console.log('🔄 Dashboard: Navigated back, reloading elections...');
+        loadActiveElections();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [voterID]);
 
   if (loading) {
     return (

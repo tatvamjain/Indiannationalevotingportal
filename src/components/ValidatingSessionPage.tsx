@@ -4,18 +4,25 @@ import { Loader2, Shield } from 'lucide-react';
 import Header from './Header';
 import Footer from './Footer';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
 
 export default function ValidatingSessionPage() {
   const navigate = useNavigate();
+  const { isVoiceMode, speak } = useVoiceAccessibility();
 
   useEffect(() => {
+    // Announce to voice users ONLY ONCE when page loads
+    if (isVoiceMode) {
+      speak('Validating your authentication. Please wait while we verify your credentials with Aadhaar.');
+    }
+    
     // Simulate sending to UIDAI and validating
     const timer = setTimeout(() => {
       navigate('/session-response');
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, [navigate]); // Removed isVoiceMode and speak from dependencies to prevent infinite loop
 
   return (
     <div className="flex flex-col min-h-screen">
