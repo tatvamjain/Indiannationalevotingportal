@@ -10,6 +10,7 @@ import { createClient } from '../utils/supabase/client';
 import { toast } from 'sonner';
 import { useVoiceGuide } from '../hooks/useVoiceGuide';
 import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
+import { useLanguage } from '../utils/i18n/LanguageContext';
 
 interface Election {
   id: string;
@@ -23,6 +24,7 @@ interface Election {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { isVoiceMode } = useVoiceAccessibility();
+  const { t } = useLanguage();
   const hasAnnounced = useRef(false); // Track if we've already announced
   
   // Get session data
@@ -286,7 +288,7 @@ export default function DashboardPage() {
         <main className="flex-1 py-12 bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin size-12 border-4 border-[#002B5B] border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-[#002B5B]">Loading dashboard...</p>
+            <p className="text-[#002B5B]">{t.loading}</p>
           </div>
         </main>
         <Footer />
@@ -301,8 +303,8 @@ export default function DashboardPage() {
       <main className="flex-1 py-8 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="mb-6">
-            <h1 className="text-[#002B5B] mb-2">Voter Dashboard</h1>
-            <p className="text-gray-600">Welcome to your demo voting portal</p>
+            <h1 className="text-[#002B5B] mb-2">{t.voterDashboard}</h1>
+            <p className="text-gray-600">{t.welcomeMessage}</p>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-6">
@@ -313,29 +315,29 @@ export default function DashboardPage() {
                 <CardHeader>
                   <CardTitle className="text-[#002B5B] flex items-center gap-2">
                     <Shield className="size-5" />
-                    Session Status
+                    {t.sessionStatus}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Status:</span>
+                      <span className="text-sm text-gray-600">{t.status}:</span>
                       <Badge className={isAuthenticated ? 'bg-green-500' : 'bg-red-500'}>
-                        {isAuthenticated ? 'Active' : 'Inactive'}
+                        {isAuthenticated ? t.active : t.inactive}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">User ID:</span>
+                      <span className="text-sm text-gray-600">{t.userID}:</span>
                       <span className="text-sm text-[#002B5B] font-mono">{sessionData.userID || 'N/A'}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Session ID:</span>
+                      <span className="text-sm text-gray-600">{t.sessionID}:</span>
                       <span className="text-sm text-[#002B5B] font-mono">{sessionData.sessionID || 'N/A'}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Has Voted:</span>
+                      <span className="text-sm text-gray-600">{t.hasVoted}:</span>
                       <Badge variant={hasVoted ? 'default' : 'outline'} className={hasVoted ? 'bg-green-500' : ''}>
-                        {hasVoted ? 'Yes' : 'No'}
+                        {hasVoted ? t.yes : t.no}
                       </Badge>
                     </div>
                   </div>
@@ -347,9 +349,9 @@ export default function DashboardPage() {
                 <Card className="border-2 border-amber-500">
                   <CardContent className="py-12 text-center">
                     <AlertCircle className="size-12 text-amber-600 mx-auto mb-4" />
-                    <p className="text-[#002B5B] mb-2">No Active Elections</p>
+                    <p className="text-[#002B5B] mb-2">{t.noActiveElections}</p>
                     <p className="text-sm text-gray-600">
-                      There are currently no active elections. Check back later.
+                      {t.noElectionsDesc}
                     </p>
                   </CardContent>
                 </Card>
@@ -364,12 +366,12 @@ export default function DashboardPage() {
                             {election.name}
                           </CardTitle>
                           <CardDescription className="mt-2">
-                            Election ID: {election.id.slice(0, 18)}...
+                            {t.electionID}: {election.id.slice(0, 18)}...
                           </CardDescription>
                         </div>
                         <Badge className="bg-green-500 hover:bg-green-600">
                           <Clock className="size-3 mr-1" />
-                          Active
+                          {t.active}
                         </Badge>
                       </div>
                     </CardHeader>
@@ -378,13 +380,13 @@ export default function DashboardPage() {
                         <div className="bg-blue-50 rounded-lg p-4">
                           <div className="grid sm:grid-cols-2 gap-4">
                             <div>
-                              <p className="text-sm text-gray-600">Schedule</p>
+                              <p className="text-sm text-gray-600">{t.schedule}</p>
                               <p className="text-[#002B5B]">
                                 {new Date(election.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {new Date(election.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                               </p>
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600">Constituency</p>
+                              <p className="text-sm text-gray-600">{t.constituency}</p>
                               <p className="text-[#002B5B]">{election.constituency}</p>
                             </div>
                           </div>
@@ -395,10 +397,10 @@ export default function DashboardPage() {
                             <CheckCircle className="size-5 text-green-600 flex-shrink-0 mt-0.5" />
                             <div>
                               <p className="text-green-900">
-                                You have successfully cast your vote.
+                                {t.votedSuccess}
                               </p>
                               <p className="text-sm text-green-700 mt-1">
-                                Thank you for participating in the democratic process!
+                                {t.votedThankYou}
                               </p>
                             </div>
                           </div>
@@ -408,10 +410,10 @@ export default function DashboardPage() {
                               <AlertCircle className="size-5 text-amber-600 flex-shrink-0 mt-0.5" />
                               <div>
                                 <p className="text-amber-900">
-                                  You have not voted yet.
+                                  {t.notVotedYet}
                                 </p>
                                 <p className="text-sm text-amber-700 mt-1">
-                                  Cast your vote before the window closes.
+                                  {t.castVoteSoon}
                                 </p>
                               </div>
                             </div>
@@ -422,7 +424,7 @@ export default function DashboardPage() {
                               size="lg"
                             >
                               <Vote className="size-4 mr-2" />
-                              Proceed to Vote
+                              {t.proceedToVote}
                             </Button>
                           </>
                         )}
@@ -436,7 +438,7 @@ export default function DashboardPage() {
                           className="w-full"
                         >
                           <BarChart className="size-4 mr-2" />
-                          View Election Results
+                          {t.viewElectionResults}
                         </Button>
                       </div>
                     </CardContent>
@@ -450,16 +452,16 @@ export default function DashboardPage() {
               {/* Voter Info Card */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-[#002B5B]">Voter Information</CardTitle>
+                  <CardTitle className="text-[#002B5B]">{t.voterInformation}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Name:</span>
+                      <span className="text-sm text-gray-600">{t.name}:</span>
                       <span className="text-[#002B5B]">{sessionData.name}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Aadhaar:</span>
+                      <span className="text-sm text-gray-600">{t.aadhaar}:</span>
                       <span className="text-[#002B5B] font-mono">
                         XXXX-XXXX-{sessionData.aadhaar?.slice(-4)}
                       </span>
@@ -473,14 +475,14 @@ export default function DashboardPage() {
                 <CardHeader>
                   <CardTitle className="text-[#002B5B] flex items-center gap-2">
                     <Receipt className="size-5" />
-                    Vote Receipt
+                    {t.voteReceipt}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {hasVoted && voteReceipt ? (
                     <div className="space-y-3">
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <p className="text-xs text-gray-600 mb-1">Receipt ID</p>
+                        <p className="text-xs text-gray-600 mb-1">{t.receiptID}</p>
                         <p className="text-xs text-[#002B5B] font-mono break-all">{voteReceipt}</p>
                       </div>
                       <Button
@@ -489,11 +491,11 @@ export default function DashboardPage() {
                         className="w-full"
                         size="sm"
                       >
-                        View Receipt History
+                        {t.viewReceiptHistory}
                       </Button>
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">No receipt available. Vote to generate receipt.</p>
+                    <p className="text-sm text-gray-500">{t.noReceipt}</p>
                   )}
                 </CardContent>
               </Card>
@@ -503,26 +505,26 @@ export default function DashboardPage() {
                 <CardHeader>
                   <CardTitle className="text-[#002B5B] flex items-center gap-2">
                     <FileText className="size-5" />
-                    Instructions
+                    {t.instructions}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 text-sm text-gray-600">
                     <li className="flex items-start gap-2">
                       <span className="text-[#FF9933] mt-1">•</span>
-                      <span>Only one vote allowed per Aadhaar ID</span>
+                      <span>{t.instruction1}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-[#FF9933] mt-1">•</span>
-                      <span>Select one candidate from the ballot</span>
+                      <span>{t.instruction2}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-[#FF9933] mt-1">•</span>
-                      <span>Review your choice before confirming</span>
+                      <span>{t.instruction3}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-[#FF9933] mt-1">•</span>
-                      <span>Save your vote receipt for verification</span>
+                      <span>{t.instruction4}</span>
                     </li>
                   </ul>
                 </CardContent>

@@ -11,12 +11,14 @@ import { toast } from 'sonner@2.0.3';
 import { useVoiceGuide } from '../hooks/useVoiceGuide';
 import VoiceAccessibilityNotice from './VoiceAccessibilityNotice';
 import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
+import { useLanguage } from '../utils/i18n/LanguageContext';
 
 type FormField = 'name' | 'aadhaar' | 'phone' | 'review';
 
 export default function RegistrationPage() {
   const navigate = useNavigate();
   const { isVoiceMode } = useVoiceAccessibility();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     aadhaar: '',
@@ -382,24 +384,24 @@ export default function RegistrationPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-[#002B5B]">Voter Registration</CardTitle>
-                <CardDescription>Register for the Mock Lok Sabha Elections 2025</CardDescription>
+                <CardTitle className="text-[#002B5B]">{t.registerToVote}</CardTitle>
+                <CardDescription>{t.landingSubtitle}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 flex items-start gap-2">
                   <AlertCircle className="size-4 text-blue-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-blue-900">
-                    This is a demo only. No real Aadhaar data is used or stored.
+                    {t.disclaimerText}
                   </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="fullName">Full Name</Label>
+                    <Label htmlFor="fullName">{t.fullName}</Label>
                     <Input
                       id="fullName"
                       type="text"
-                      placeholder="Enter your full name"
+                      placeholder={t.fullNamePlaceholder}
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className={`mt-1 ${isVoiceMode && currentField === 'name' ? 'ring-2 ring-green-500' : ''}`}
@@ -407,14 +409,14 @@ export default function RegistrationPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="aadhaar">Aadhaar Number (Demo)</Label>
+                    <Label htmlFor="aadhaar">{t.aadhaarNumber} ({t.landingDescription})</Label>
                     <Input
                       id="aadhaar"
                       type="text"
-                      placeholder="XXXX XXXX XXXX"
+                      placeholder={t.aadhaarPlaceholder}
                       maxLength={12}
                       value={formData.aadhaar}
-                      onChange={(e) => setFormData({ ...formData, aadhaar: e.target.value.replace(/\D/g, '') })}
+                      onChange={(e) => setFormData({ ...formData, aadhaar: e.target.value.replace(/\\D/g, '') })}
                       className={`mt-1 ${isVoiceMode && currentField === 'aadhaar' ? 'ring-2 ring-green-500' : ''}`}
                     />
                     <p className="text-xs text-gray-500 mt-1">
@@ -423,14 +425,14 @@ export default function RegistrationPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="mobile">Mobile Number</Label>
+                    <Label htmlFor="mobile">{t.phoneNumber}</Label>
                     <Input
                       id="mobile"
                       type="tel"
-                      placeholder="10-digit mobile number"
+                      placeholder={t.phonePlaceholder}
                       maxLength={10}
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\\D/g, '') })}
                       className={`mt-1 ${isVoiceMode && currentField === 'phone' ? 'ring-2 ring-green-500' : ''}`}
                     />
                     <p className="text-xs text-gray-500 mt-1">
@@ -439,7 +441,7 @@ export default function RegistrationPage() {
                   </div>
 
                   <Button type="submit" className="w-full bg-[#002B5B] hover:bg-[#003D7A]">
-                    Send OTP (Demo)
+                    {t.registerNow}
                   </Button>
                 </form>
               </CardContent>

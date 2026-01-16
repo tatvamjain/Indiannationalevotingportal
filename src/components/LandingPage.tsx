@@ -5,33 +5,66 @@ import Footer from './Footer';
 import { Button } from './ui/button';
 import { useLanguage } from '../utils/i18n/LanguageContext';
 import { useVoiceGuide } from '../hooks/useVoiceGuide';
+import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function LandingPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { voiceLanguage } = useVoiceAccessibility();
   const navigate = useNavigate();
+
+  const getWelcomeMessage = () => {
+    if (voiceLanguage === 'hi') {
+      return 'राष्ट्रीय ई-वोटिंग पोर्टल में आपका स्वागत है। यह एक प्रदर्शन प्रणाली है। पंजीकरण प्रक्रिया शुरू करने के लिए "मतदान शुरू करें" कहें, या चुनाव परिणाम देखने के लिए "परिणाम देखें" कहें।';
+    }
+    return 'Welcome to the National E-Voting Portal. This is a demonstration system. Say "Start Voting" to begin the registration process, or say "View Results" to see election results.';
+  };
 
   const voiceGuide = useVoiceGuide({
     page: 'welcome',
-    welcomeMessage: 'Welcome to the National E-Voting Portal. This is a demonstration system. Say "Start Voting" to begin the registration process, or say "View Results" to see election results.',
+    welcomeMessage: getWelcomeMessage(),
     commands: {
       'start voting': () => {
-        voiceGuide.speak('Navigating to voter registration.', () => {
+        const message = voiceLanguage === 'hi' ? 'मतदाता पंजीकरण की ओर जा रहे हैं।' : 'Navigating to voter registration.';
+        voiceGuide.speak(message, () => {
           navigate('/register');
         });
       },
       'register': () => {
-        voiceGuide.speak('Navigating to voter registration.', () => {
+        const message = voiceLanguage === 'hi' ? 'मतदाता पंजीकरण की ओर जा रहे हैं।' : 'Navigating to voter registration.';
+        voiceGuide.speak(message, () => {
+          navigate('/register');
+        });
+      },
+      'मतदान शुरू करें': () => {
+        voiceGuide.speak('मतदाता पंजीकरण की ओर जा रहे हैं।', () => {
+          navigate('/register');
+        });
+      },
+      'पंजीकरण': () => {
+        voiceGuide.speak('मतदाता पंजीकरण की ओर जा रहे हैं।', () => {
           navigate('/register');
         });
       },
       'view results': () => {
-        voiceGuide.speak('Navigating to election results.', () => {
+        const message = voiceLanguage === 'hi' ? 'चुनाव परिणामों की ओर जा रहे हैं।' : 'Navigating to election results.';
+        voiceGuide.speak(message, () => {
           navigate('/results');
         });
       },
       'results': () => {
-        voiceGuide.speak('Navigating to election results.', () => {
+        const message = voiceLanguage === 'hi' ? 'चुनाव परिणामों की ओर जा रहे हैं।' : 'Navigating to election results.';
+        voiceGuide.speak(message, () => {
+          navigate('/results');
+        });
+      },
+      'परिणाम देखें': () => {
+        voiceGuide.speak('चुनाव परिणामों की ओर जा रहे हैं।', () => {
+          navigate('/results');
+        });
+      },
+      'परिणाम': () => {
+        voiceGuide.speak('चुनाव परिणामों की ओर जा रहे हैं।', () => {
           navigate('/results');
         });
       },

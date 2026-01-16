@@ -16,6 +16,10 @@ interface VoiceAccessibilityContextType {
   setCurrentStep: (step: string) => void;
   addTranscript: (text: string, type: 'system' | 'user') => void;
   transcriptHistory: Array<{ text: string; type: 'system' | 'user'; timestamp: Date }>;
+  voiceLanguage: string;
+  setVoiceLanguage: (lang: string) => void;
+  isLanguageSelectionMode: boolean;
+  setIsLanguageSelectionMode: (value: boolean) => void;
 }
 
 const VoiceAccessibilityContext = createContext<VoiceAccessibilityContextType | undefined>(undefined);
@@ -35,6 +39,11 @@ export const VoiceAccessibilityProvider: React.FC<{ children: React.ReactNode }>
   const [transcript, setTranscript] = useState('');
   const [currentStep, setCurrentStep] = useState('welcome');
   const [transcriptHistory, setTranscriptHistory] = useState<Array<{ text: string; type: 'system' | 'user'; timestamp: Date }>>([]);
+  const [voiceLanguage, setVoiceLanguageState] = useState<string>(() => {
+    // Get saved voice language from localStorage or default to English
+    return localStorage.getItem('voiceLanguage') || 'en';
+  });
+  const [isLanguageSelectionMode, setIsLanguageSelectionMode] = useState(false);
   
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -53,6 +62,17 @@ export const VoiceAccessibilityProvider: React.FC<{ children: React.ReactNode }>
     };
   }, []);
 
+  // Save voice language to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('voiceLanguage', voiceLanguage);
+  }, [voiceLanguage]);
+
+  const setVoiceLanguage = (lang: string) => {
+    if (lang === 'en' || lang === 'hi') {
+      setVoiceLanguageState(lang);
+    }
+  };
+
   const speak = (text: string, onEnd?: () => void) => {
     if (!synthRef.current) {
       console.warn('Speech synthesis not supported');
@@ -63,7 +83,8 @@ export const VoiceAccessibilityProvider: React.FC<{ children: React.ReactNode }>
     stopSpeaking();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-IN';
+    // Set language based on voiceLanguage
+    utterance.lang = voiceLanguage === 'hi' ? 'hi-IN' : 'en-IN';
     utterance.rate = 0.85; // Slower for accessibility
     utterance.pitch = 1;
     utterance.volume = 1;
@@ -109,7 +130,8 @@ export const VoiceAccessibilityProvider: React.FC<{ children: React.ReactNode }>
     onResultCallbackRef.current = onResult;
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN';
+    // Set recognition language based on voiceLanguage
+    recognition.lang = voiceLanguage === 'hi' ? 'hi-IN' : 'en-IN';
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
@@ -174,12 +196,15 @@ export const VoiceAccessibilityProvider: React.FC<{ children: React.ReactNode }>
     if (newMode) {
       setTranscriptHistory([]);
       setCurrentStep('welcome');
+      // Enter language selection mode when voice mode is activated
+      setIsLanguageSelectionMode(true);
       toast.success('Voice Accessibility Mode Enabled');
-      // Welcome message will be triggered by the page component
+      // Language selection will be triggered by the page component or overlay
     } else {
       stopSpeaking();
       stopListening();
       setTranscriptHistory([]);
+      setIsLanguageSelectionMode(false);
       toast.info('Voice Accessibility Mode Disabled');
     }
   };
@@ -204,6 +229,10 @@ export const VoiceAccessibilityProvider: React.FC<{ children: React.ReactNode }>
         setCurrentStep,
         addTranscript,
         transcriptHistory,
+        voiceLanguage,
+        setVoiceLanguage,
+        isLanguageSelectionMode,
+        setIsLanguageSelectionMode,
       }}
     >
       {children}

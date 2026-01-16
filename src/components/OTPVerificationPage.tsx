@@ -8,10 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { toast } from 'sonner@2.0.3';
 import { useVoiceGuide } from '../hooks/useVoiceGuide';
 import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
+import { useLanguage } from '../utils/i18n/LanguageContext';
 
 export default function OTPVerificationPage() {
   const navigate = useNavigate();
   const { isVoiceMode } = useVoiceAccessibility();
+  const { t } = useLanguage();
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [otp, setOtp] = useState('');
@@ -238,9 +240,9 @@ export default function OTPVerificationPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-[#002B5B]">Verify OTP</CardTitle>
+                <CardTitle className="text-[#002B5B]">{t.otpVerification}</CardTitle>
                 <CardDescription>
-                  Enter the 6-digit OTP sent to your mobile number (Demo: use any 6 digits)
+                  {t.enterOTP}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -254,7 +256,7 @@ export default function OTPVerificationPage() {
                   <div className="text-center">
                     {!canResend ? (
                       <p className="text-sm text-gray-600">
-                        Resend OTP in <span className="text-[#002B5B]">{timer}s</span>
+                        {t.resendOTP} in <span className="text-[#002B5B]">{timer}s</span>
                       </p>
                     ) : (
                       <Button
@@ -262,14 +264,14 @@ export default function OTPVerificationPage() {
                         onClick={handleResend}
                         className="text-[#002B5B]"
                       >
-                        Resend OTP (Demo)
+                        {t.resendOTP}
                       </Button>
                     )}
                   </div>
 
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                     <p className="text-xs text-amber-900 text-center">
-                      Demo Mode: Enter any 6 digits to proceed
+                      {t.otpInstructions}
                     </p>
                   </div>
                 </div>

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
+import { useLanguage } from '../utils/i18n/LanguageContext';
+import { getVoiceMessage } from '../utils/voiceTranslations';
 import { toast } from 'sonner@2.0.3';
 
 export interface VoiceGuideConfig {
@@ -22,9 +24,12 @@ export const useVoiceGuide = (config: VoiceGuideConfig) => {
     isListening,
     isSpeaking,
     setCurrentStep,
-    toggleVoiceMode
+    toggleVoiceMode,
+    voiceLanguage,
+    isLanguageSelectionMode,
   } = useVoiceAccessibility();
   
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [isReady, setIsReady] = useState(false);
@@ -38,9 +43,9 @@ export const useVoiceGuide = (config: VoiceGuideConfig) => {
     onVoiceInputRef.current = config.onVoiceInput;
   }, [config.commands, config.onVoiceInput]);
 
-  // Speak welcome message when voice mode is activated
+  // Speak welcome message when voice mode is activated and language is selected
   useEffect(() => {
-    if (isVoiceMode && config.welcomeMessage && !hasSpokenWelcome.current) {
+    if (isVoiceMode && !isLanguageSelectionMode && config.welcomeMessage && !hasSpokenWelcome.current) {
       // Small delay to ensure UI is ready
       const timer = setTimeout(() => {
         setCurrentStep(config.page);
@@ -56,26 +61,26 @@ export const useVoiceGuide = (config: VoiceGuideConfig) => {
       return () => clearTimeout(timer);
     }
 
-    if (!isVoiceMode) {
+    if (!isVoiceMode || isLanguageSelectionMode) {
       hasSpokenWelcome.current = false;
       setIsReady(false);
     }
-  }, [isVoiceMode, config.page, config.welcomeMessage, config.autoStart]);
+  }, [isVoiceMode, isLanguageSelectionMode, config.page, config.welcomeMessage, config.autoStart]);
 
   const startListeningForCommand = useCallback(() => {
-    if (!isVoiceMode || isListening || isSpeaking) return;
+    if (!isVoiceMode || isListening || isSpeaking || isLanguageSelectionMode) return;
 
     startListening((result) => {
       handleVoiceCommand(result);
     });
-  }, [isVoiceMode, isListening, isSpeaking, startListening]);
+  }, [isVoiceMode, isListening, isSpeaking, isLanguageSelectionMode, startListening]);
 
   const handleVoiceCommand = (command: string) => {
     const lowerCommand = command.toLowerCase().trim();
     console.log('🎤 Voice command received:', lowerCommand);
 
-    // Global commands
-    if (lowerCommand.includes('repeat') || lowerCommand.includes('again')) {
+    // Global commands with language support
+    if (lowerCommand.includes('repeat') || lowerCommand.includes('again') || lowerCommand.includes('दोहराएं') || lowerCommand.includes('फिर से')) {
       if (config.welcomeMessage) {
         speak(config.welcomeMessage, () => {
           startListeningForCommand();
@@ -84,16 +89,18 @@ export const useVoiceGuide = (config: VoiceGuideConfig) => {
       return;
     }
 
-    if (lowerCommand.includes('cancel') || lowerCommand.includes('exit')) {
-      speak('Exiting voice mode.');
+    if (lowerCommand.includes('cancel') || lowerCommand.includes('exit') || lowerCommand.includes('रद्द') || lowerCommand.includes('बाहर')) {
+      const exitMessage = getVoiceMessage('exitingVoiceMode', voiceLanguage);
+      speak(exitMessage);
       setTimeout(() => {
         toggleVoiceMode();
       }, 1000);
       return;
     }
 
-    if (lowerCommand.includes('back') || lowerCommand.includes('previous')) {
-      speak('Going back.');
+    if (lowerCommand.includes('back') || lowerCommand.includes('previous') || lowerCommand.includes('वापस') || lowerCommand.includes('पिछला')) {
+      const backMessage = getVoiceMessage('goingBack', voiceLanguage);
+      speak(backMessage);
       setTimeout(() => {
         navigate(-1);
       }, 1000);
@@ -124,7 +131,8 @@ export const useVoiceGuide = (config: VoiceGuideConfig) => {
     }
 
     if (!commandExecuted) {
-      speak('Sorry, I did not understand that command. Please try again.', () => {
+      const notUnderstoodMessage = getVoiceMessage('commandNotUnderstood', voiceLanguage);
+      speak(notUnderstoodMessage, () => {
         startListeningForCommand();
       });
     }
@@ -141,23 +149,31 @@ export const useVoiceGuide = (config: VoiceGuideConfig) => {
   }, [speak, startListeningForCommand]);
 
   const confirmAction = useCallback((message: string, onConfirm: () => void, onCancel?: () => void) => {
-    speak(`${message} Say confirm to proceed, or cancel to go back.`, () => {
+    const confirmPrompt = voiceLanguage === 'hi' 
+      ? `${message} आगे बढ़ने के लिए पुष्टि करें कहें, या वापस जाने के लिए रद्द करें कहें।`
+      : `${message} Say confirm to proceed, or cancel to go back.`;
+    
+    speak(confirmPrompt, () => {
       startListening((result) => {
         const lowerResult = result.toLowerCase();
-        if (lowerResult.includes('confirm') || lowerResult.includes('yes')) {
+        // Check both English and Hindi commands
+        if (lowerResult.includes('confirm') || lowerResult.includes('yes') || 
+            lowerResult.includes('पुष्टि') || lowerResult.includes('हां')) {
           onConfirm();
-        } else if (lowerResult.includes('cancel') || lowerResult.includes('no')) {
+        } else if (lowerResult.includes('cancel') || lowerResult.includes('no') || 
+                   lowerResult.includes('रद्द') || lowerResult.includes('नहीं')) {
           if (onCancel) {
             onCancel();
           } else {
-            speakAndListen('Action cancelled.');
+            const cancelledMessage = voiceLanguage === 'hi' ? 'कार्रवाई रद्द की गई।' : 'Action cancelled.';
+            speakAndListen(cancelledMessage);
           }
         } else {
           confirmAction(message, onConfirm, onCancel);
         }
       });
     });
-  }, [speak, startListening, speakAndListen]);
+  }, [speak, startListening, speakAndListen, voiceLanguage]);
 
   const listenForInput = useCallback((onResult: (text: string) => void) => {
     if (!isVoiceMode) return;

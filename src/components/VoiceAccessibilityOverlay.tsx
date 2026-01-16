@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X, Volume2, Mic, AlertCircle } from 'lucide-react';
+import { X, Volume2, Mic, AlertCircle, Globe } from 'lucide-react';
 import { useVoiceAccessibility } from '../utils/VoiceAccessibilityContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -14,7 +14,9 @@ export default function VoiceAccessibilityOverlay() {
     isListening, 
     isSpeaking,
     transcriptHistory,
-    currentStep 
+    currentStep,
+    voiceLanguage,
+    isLanguageSelectionMode,
   } = useVoiceAccessibility();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -25,7 +27,8 @@ export default function VoiceAccessibilityOverlay() {
     }
   }, [transcriptHistory]);
 
-  if (!isVoiceMode) return null;
+  // Don't show overlay during language selection
+  if (!isVoiceMode || isLanguageSelectionMode) return null;
 
   return (
     <>
@@ -45,6 +48,13 @@ export default function VoiceAccessibilityOverlay() {
                 <p className="text-xs text-gray-600">
                   Demo feature for visually impaired users
                 </p>
+                {/* Language indicator */}
+                <div className="flex items-center gap-1 mt-2">
+                  <Globe className="h-3 w-3 text-gray-500" />
+                  <span className="text-xs text-gray-600">
+                    Language: <strong>{voiceLanguage === 'hi' ? 'हिंदी (Hindi)' : 'English'}</strong>
+                  </span>
+                </div>
               </div>
               <Button
                 variant="ghost"

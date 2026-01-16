@@ -21,6 +21,7 @@ import { LanguageProvider } from './utils/i18n/LanguageContext';
 import { VoiceAccessibilityProvider } from './utils/VoiceAccessibilityContext';
 import VoiceAccessibilityButton from './components/VoiceAccessibilityButton';
 import VoiceAccessibilityOverlay from './components/VoiceAccessibilityOverlay';
+import VoiceLanguageSelector from './components/VoiceLanguageSelector';
 import { Toaster } from 'sonner@2.0.3';
 
 export default function App() {
@@ -55,6 +56,7 @@ export default function App() {
             
             {/* Global Voice Accessibility Components */}
             <VoiceAccessibilityButton />
+            <VoiceLanguageSelector />
             <VoiceAccessibilityOverlay />
           </div>
         </Router>
